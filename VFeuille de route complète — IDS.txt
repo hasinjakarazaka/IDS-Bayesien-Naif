@@ -1,0 +1,126 @@
+VFeuille de route complète — IDS par Classifieur Bayésien Naïf
+
+1. Comprendre le cadre théorique avant tout
+Avant d'écrire une seule ligne de code, tu dois avoir une maîtrise solide de trois piliers théoriques qui sont directement reliés à ton support de cours.
+1.1 Le théorème de Bayes — le cœur du modèle
+La formule fondamentale est :
+P(Classe | X) = P(X | Classe) × P(Classe) / P(X)
+Dans ton contexte IDS, cela se traduit concrètement par :
+
+P(Attaque | X) → probabilité que la connexion soit une attaque, sachant ses caractéristiques observées
+P(X | Attaque) → vraisemblance : à quel point ces caractéristiques sont-elles typiques d'une attaque ?
+P(Attaque) → probabilité a priori : quelle est la fréquence des attaques dans ton dataset ?
+P(X) → terme de normalisation, identique pour toutes les classes, donc ignorable dans la décision
+
+La règle de décision devient alors : comparer les scores de vraisemblance pondérés par les a priori, sans calculer P(X) explicitement.
+1.2 L'hypothèse naïve — ce qui rend le modèle tractable
+C'est l'hypothèse selon laquelle toutes les variables (durée, protocole, ports…) sont conditionnellement indépendantes entre elles, sachant la classe. Cela donne :
+P(X | Classe) = P(x₁ | Classe) × P(x₂ | Classe) × … × P(xₙ | Classe)
+Ton support de cours (section 4) insiste sur le fait que cette hypothèse est souvent fausse en pratique — dans KDD'99, les attributs sont corrélés — mais que le modèle reste étonnamment performant malgré ça. C'est un point à argumenter dans ton rapport.
+1.3 Le problème des probabilités nulles — lissage de Laplace
+Si une valeur d'attribut n'apparaît jamais avec une classe dans les données d'entraînement, sa probabilité conditionnelle est zéro, ce qui annule tout le produit. La solution standard (vue dans ton cours, section 4) est l'estimateur de Laplace : on ajoute 1 à chaque numérateur et on compense au dénominateur.
+
+2. Comprendre les données KDD'99 / NSL-KDD
+2.1 Structure des données
+Comme décrit dans ton support (section 2), chaque enregistrement représente une connexion réseau caractérisée par 41 attributs. Pour un projet de niveau M1, tu n'as pas besoin des 41 — une sélection de 8 à 12 attributs pertinents est suffisante et plus pédagogique.
+Les attributs les plus discriminants à retenir pour un contexte bibliothèque :
+AttributTypePourquoi pertinentdurationContinuSessions anormalement longuesprotocol_typeDiscretTCP/UDP/ICMP selon l'attaqueserviceDiscretHTTP, FTP, telnet…flagDiscretSYN, REJ, SF… statut connexionsrc_bytesContinuVolume de données envoyéesdst_bytesContinuVolume reçunum_failed_loginsDiscretTentatives ratéesserror_rateContinu (%)Taux d'erreurs SYN
+2.2 Les quatre catégories d'attaques à connaître
+Ton cours les décrit en section 2. Pour un projet à deux classes (Normal / Attaque), tu les regroupes toutes. Mais il faut savoir ce qu'elles représentent :
+
+DOS (Denial of Service) : surcharge du réseau — les plus fréquentes dans KDD'99 (~79% des attaques)
+Probing : reconnaissance du réseau, scan de ports
+R2L (Remote to Local) : exploitation à distance pour obtenir un accès local
+U2R (User to Root) : élévation de privilèges
+
+Point important pour ton rapport : les classes R2L et U2R sont très sous-représentées (< 0.3% des données d'entraînement), ce qui crée un déséquilibre majeur qui impacte les performances.
+2.3 Pourquoi NSL-KDD plutôt que KDD'99
+NSL-KDD est une version nettoyée qui supprime les enregistrements en double de KDD'99. KDD'99 contient des millions de connexions identiques (notamment DOS) qui biaisent les statistiques. Pour un projet M1, NSL-KDD est préférable car il est plus équilibré et plus petit.
+
+3. Étapes méthodologiques complètes
+Phase 1 — Exploration et compréhension des données (EDA)
+Avant tout modèle, tu dois connaître tes données. Les questions à se poser :
+
+Quelle est la distribution des classes ? (Normal vs Attaque — déséquilibre ?)
+Y a-t-il des valeurs manquantes ?
+Quels attributs sont continus, lesquels sont discrets ?
+Quelles sont les corrélations entre variables ?
+
+Les visualisations essentielles à produire : histogrammes par classe pour chaque variable, matrice de corrélation, diagramme de distribution des classes.
+Phase 2 — Prétraitement
+C'est souvent la phase la plus longue et la plus déterminante.
+2a. Gestion des attributs continus
+Le bayésien naïf standard suppose une distribution pour les attributs continus. Deux approches possibles, vues dans ton cours (section 4) :
+
+Distribution gaussienne : on calcule μ et σ par classe, puis on utilise la densité de probabilité normale. Simple mais parfois inexacte.
+Estimation par noyau (kernel density estimation) : non-paramétrique, ne suppose aucune distribution. Ton cours montre que cette méthode donne de meilleurs résultats sur KDD'99.
+Discrétisation : transformer les variables continues en intervalles. Ton cours (section 9) montre que ça améliore légèrement les résultats pour les réseaux bayésiens naïfs.
+
+Pour ton projet, tu peux tester les trois et comparer — c'est une bonne contribution analytique.
+2b. Encodage des attributs discrets
+Les variables catégorielles (protocol_type = "tcp"/"udp"/"icmp") doivent être encodées numériquement. Pour un bayésien naïf, on utilisera LabelEncoder ou un encodage par fréquences.
+2c. Gestion du déséquilibre des classes
+Si Normal représente 80% et Attaque 20%, le modèle sera biaisé vers "Normal". Solutions possibles :
+
+Sous-échantillonnage (undersampling) : réduire la classe majoritaire
+Sur-échantillonnage (oversampling, SMOTE) : générer des exemples synthétiques de la classe minoritaire
+Pondération des classes : donner plus de poids aux attaques dans le calcul
+
+Phase 3 — Construction du modèle manuel (formule à la main)
+Avant d'utiliser sklearn, tu dois implémenter le modèle manuellement pour démontrer que tu comprends les formules. Les étapes sont :
+
+Calcul des probabilités a priori : P(Normal) et P(Attaque) par comptage des fréquences dans les données d'entraînement
+Calcul des vraisemblances pour chaque attribut :
+
+Discret : comptage avec lissage de Laplace → P(xᵢ | Classe)
+Continu : estimation de μ et σ par classe → fonction de densité gaussienne
+
+
+Classification d'une nouvelle connexion : calculer le score de chaque classe, prendre le maximum
+
+Phase 4 — Implémentation avec sklearn
+Après l'implémentation manuelle, tu utilises sklearn pour valider tes résultats et bénéficier de fonctionnalités avancées. Les classes pertinentes sont GaussianNB, MultinomialNB (pour attributs discrets), ComplementNB. Tu compares les résultats avec ton implémentation manuelle — s'ils convergent, c'est une preuve de validité.
+Phase 5 — Évaluation rigoureuse
+C'est là que beaucoup d'étudiants se trompent en utilisant uniquement l'accuracy — ce qui est insuffisant, voire trompeur sur des données déséquilibrées.
+Les métriques essentielles dans un contexte IDS :
+Matrice de confusion — indispensable, comme dans ton cours (section 5) :
+Prédit NormalPrédit AttaqueRéel NormalVrai Négatif (TN)Faux Positif (FP)Réel AttaqueFaux Négatif (FN)Vrai Positif (TP)
+Métriques à calculer et interpréter :
+
+Accuracy = (TP + TN) / Total — attention au déséquilibre
+Précision = TP / (TP + FP) — parmi les alertes déclenchées, combien sont réelles ?
+Recall (Taux de détection) = TP / (TP + FN) — parmi les vraies attaques, combien sont détectées ?
+F1-Score = 2 × (Précision × Recall) / (Précision + Recall) — compromis entre les deux
+Faux Positifs et Faux Négatifs — ton cours y consacre une attention spéciale (section 5)
+
+Dans un IDS, le faux négatif est plus dangereux qu'un faux positif : manquer une vraie attaque est bien plus grave qu'une fausse alerte. Tu dois argumenter ce point dans ton rapport.
+Validation croisée (cross-validation) : ne pas évaluer sur les données d'entraînement. Utiliser un split 70/30 ou une validation croisée à 5 ou 10 plis.
+Phase 6 — Analyse et interprétation
+C'est la phase qui distingue un bon rapport d'un rapport moyen. Tu dois répondre à :
+
+Pourquoi certaines classes (R2L, U2R) sont-elles mal détectées ?
+L'hypothèse naïve est-elle respectée ? Quelles corrélations existent entre variables ?
+Quel prétraitement améliore le plus les performances ?
+Comparaison bayésien naïf vs arbre de décision (si le temps le permet)
+
+
+4. Points critiques à ne pas négliger
+Le contexte "bibliothèque" — le justifier sérieusement
+Ton dataset sera KDD'99/NSL-KDD (trafic militaire US Air Force), donc tu dois contextualiser en expliquant quelles attaques sont pertinentes pour une bibliothèque publique. Un service public est exposé principalement à des attaques DOS (saturation du wifi), du Probing (scan de ports sur les terminaux publics), et éventuellement du R2L (exploitation de services web). Tu peux filtrer le dataset en conséquence.
+La question du seuil de décision
+Le modèle calcule P(Attaque | X) et P(Normal | X). La règle par défaut est de choisir la classe avec la plus grande probabilité, ce qui équivaut à un seuil à 0.5. Mais dans un IDS, tu peux abaisser ce seuil pour favoriser la détection (plus de recall, plus de faux positifs) ou le relever pour réduire les fausses alertes (moins de recall). C'est un paramètre à explorer.
+La granularité des classes
+Ton cours (section 5.1) identifie trois niveaux que tu peux reproduire :
+
+Deux classes : Normal / Attaque (le plus simple, idéal pour commencer)
+Cinq classes : Normal + DOS + R2L + U2R + Probing
+Multi-classes : toutes les attaques individuellement
+
+Commencer par deux classes, puis étendre si le temps le permet.
+
+5. Feuille de route réaliste pour M1
+SemaineTravail1Lecture du cours, compréhension de Bayes, téléchargement et exploration de NSL-KDD2Prétraitement : nettoyage, encodage, gestion du déséquilibre, sélection des features3Implémentation manuelle du classifieur (formules à la main en Python)4Implémentation sklearn, comparaison, évaluation complète5Analyse des résultats, visualisations, rédaction du rapport
+
+6. Ce que ton rapport doit démontrer
+Un bon rapport de M1 sur ce sujet doit montrer que tu maîtrises : la dérivation de la règle de Bayes appliquée à la classification, l'impact de l'hypothèse naïve sur les résultats, les choix de prétraitement et leur justification statistique, l'interprétation des métriques dans le contexte de la sécurité, et une réflexion critique sur les limites du modèle.
+Dis-moi quand tu es prêt pour passer à l'implémentation, ou si tu veux qu'on approfondisse l'un de ces points en particulier.
