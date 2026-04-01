@@ -78,7 +78,9 @@ class IDSApp:
                                    font=("Segoe UI", 9, "bold"))
         data_frame.pack(fill=tk.X, padx=5, pady=5)
 
-        self.data_dir_var = tk.StringVar(value="data")
+        # Chemin absolu vers le dossier data/ (relatif au script)
+        default_data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+        self.data_dir_var = tk.StringVar(value=default_data_dir)
         tk.Label(data_frame, text="Dossier des données :",
                  font=("Segoe UI", 9)).pack(anchor=tk.W, padx=5, pady=(5, 0))
 
@@ -130,7 +132,7 @@ class IDSApp:
                                    font=("Segoe UI", 9, "bold"))
         pred_frame.pack(fill=tk.X, padx=5, pady=5)
 
-        tk.Label(pred_frame, text="Index du sample (dans le test set) :",
+        tk.Label(pred_frame, text="Index de l'échantillon (dans le jeu de test) :",
                  font=("Segoe UI", 8)).pack(anchor=tk.W, padx=5, pady=(5, 0))
 
         self.sample_idx_var = tk.StringVar(value="0")
@@ -138,7 +140,7 @@ class IDSApp:
                  font=("Segoe UI", 9), width=10).pack(anchor=tk.W, padx=5, pady=2)
 
         tk.Button(
-            pred_frame, text="🔍  Prédire ce sample",
+            pred_frame, text="🔍  Prédire cet échantillon",
             command=self._predict_sample, font=("Segoe UI", 9),
             bg="#FF9800", fg="white", relief=tk.FLAT, cursor="hand2"
         ).pack(fill=tk.X, padx=5, pady=5)
@@ -231,17 +233,17 @@ class IDSApp:
             self.models_trained = False
 
             self._log(f"  Source : {self.data_source}")
-            self._log(f"  Features : {self.feature_names}")
-            self._log(f"  X_train : {self.X_train.shape}")
-            self._log(f"  X_test  : {self.X_test.shape}")
+            self._log(f"  Caractéristiques : {self.feature_names}")
+            self._log(f"  Entraînement : {self.X_train.shape}")
+            self._log(f"  Test         : {self.X_test.shape}")
 
             n_normal_train = np.sum(self.y_train == 0)
             n_attack_train = np.sum(self.y_train == 1)
             n_normal_test = np.sum(self.y_test == 0)
             n_attack_test = np.sum(self.y_test == 1)
 
-            self._log(f"  Train — Normal: {n_normal_train}, Attaque: {n_attack_train}")
-            self._log(f"  Test  — Normal: {n_normal_test}, Attaque: {n_attack_test}")
+            self._log(f"  Entraînement — Normal: {n_normal_train}, Attaque: {n_attack_train}")
+            self._log(f"  Test         — Normal: {n_normal_test}, Attaque: {n_attack_test}")
             self._log("  ✅ Données chargées avec succès !")
             self._log("")
 
@@ -376,8 +378,8 @@ class IDSApp:
                     label=f'{label} (AUC = {roc_auc:.4f})')
 
         ax.plot([0, 1], [0, 1], 'k--', lw=1)
-        ax.set_xlabel('Taux de Faux Positifs (FPR)')
-        ax.set_ylabel('Taux de Vrais Positifs (TPR)')
+        ax.set_xlabel('Taux de Faux Positifs (TFP)')
+        ax.set_ylabel('Taux de Vrais Positifs (TVP)')
         ax.set_title('Courbes ROC — Manuel vs Sklearn')
         ax.legend(loc='lower right')
         plt.tight_layout()
@@ -419,9 +421,9 @@ class IDSApp:
 
             label_map = {0: "Normal", 1: "Attaque"}
 
-            self._log(f"--- Prédiction pour le sample #{idx} ---")
-            self._log(f"  Vraie classe   : {label_map[true_label]} ({true_label})")
-            self._log(f"  Features       : {np.round(sample[0], 4)}")
+            self._log(f"--- Prédiction pour l'échantillon #{idx} ---")
+            self._log(f"  Vraie classe       : {label_map[true_label]} ({true_label})")
+            self._log(f"  Caractéristiques   : {np.round(sample[0], 4)}")
             self._log("")
             self._log(f"  [Manuel]  Prédit : {label_map[pred_manual]}")
             self._log(f"    P(Normal)  = {proba_manual[0]:.6f}")
@@ -461,14 +463,14 @@ a posteriori d'une classe C sachant une observation X :
 
 Où :
   • P(C)     = probabilité a priori de la classe
-  • P(X | C) = vraisemblance (likelihood)
+  • P(X | C) = vraisemblance
   • P(C | X) = probabilité a posteriori
   • P(X)     = évidence (constante de normalisation)
 
 
 2. HYPOTHÈSE NAÏVE
 ────────────────────
-On suppose que les features sont indépendantes
+On suppose que les caractéristiques sont indépendantes
 conditionnellement sachant la classe :
 
     P(X | C) = P(x₁|C) × P(x₂|C) × ... × P(xₙ|C)
@@ -476,9 +478,9 @@ conditionnellement sachant la classe :
 Cette hypothèse simplifie considérablement le calcul.
 
 
-3. FEATURES CONTINUES (GAUSSIENNE)
-────────────────────────────────────
-Pour chaque feature continue xᵢ, on suppose une
+3. CARACTÉRISTIQUES CONTINUES (GAUSSIENNE)
+────────────────────────────────────────────
+Pour chaque caractéristique continue xᵢ, on suppose une
 distribution normale :
 
     P(xᵢ | C) = 1/√(2π σ²) × exp(-(xᵢ - μ)² / (2σ²))
@@ -488,7 +490,7 @@ Où μ et σ² sont estimés sur les données d'entraînement.
 
 4. LISSAGE DE LAPLACE
 ──────────────────────
-Pour les features catégorielles, on ajoute un terme α
+Pour les caractéristiques catégorielles, on ajoute un terme α
 pour éviter les probabilités nulles :
 
     P(xᵢ | C) = (count(xᵢ, C) + α) / (count(C) + α × |V|)
@@ -501,7 +503,7 @@ Pour classifier une observation X :
     ŷ = argmax_C [ P(C) × ∏ P(xᵢ | C) ]
 
 En pratique, on utilise le logarithme pour éviter les
-underflows numériques :
+dépassements numériques par le bas :
 
     ŷ = argmax_C [ log P(C) + Σ log P(xᵢ | C) ]
 
@@ -510,19 +512,19 @@ underflows numériques :
 ────────────────────────
   • Classes : Normal (0) / Attaque (1)
   • Si P(Attaque | X) > P(Normal | X) → ALERTE
-  • Features : paquets/s, connexions, durée, erreurs...
+  • Caractéristiques : paquets/s, connexions, durée, erreurs...
 
 
 7. MÉTRIQUES D'ÉVALUATION
 ───────────────────────────
-  • Accuracy  = (TP + TN) / Total
-  • Precision = TP / (TP + FP)
-  • Recall    = TP / (TP + FN)
-  • F1-Score  = 2 × Precision × Recall / (Precision + Recall)
+  • Exactitude = (VP + VN) / Total
+  • Précision  = VP / (VP + FP)
+  • Rappel     = VP / (VP + FN)
+  • Score F1   = 2 × Précision × Rappel / (Précision + Rappel)
 
 Où :
-  TP = Vrais Positifs  (attaque détectée correctement)
-  TN = Vrais Négatifs  (normal identifié correctement)
+  VP = Vrais Positifs  (attaque détectée correctement)
+  VN = Vrais Négatifs  (normal identifié correctement)
   FP = Faux Positifs   (normal classé comme attaque)
   FN = Faux Négatifs   (attaque non détectée)
 

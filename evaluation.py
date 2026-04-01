@@ -48,10 +48,10 @@ def format_metrics_text(metrics, model_name="Modèle"):
     Formate les métriques en texte lisible.
     """
     text = f"=== {model_name} ===\n"
-    text += f"  Accuracy  : {metrics['accuracy']:.4f}  ({metrics['accuracy']*100:.2f}%)\n"
-    text += f"  Precision : {metrics['precision']:.4f}\n"
-    text += f"  Recall    : {metrics['recall']:.4f}\n"
-    text += f"  F1-Score  : {metrics['f1']:.4f}\n"
+    text += f"  Exactitude : {metrics['accuracy']:.4f}  ({metrics['accuracy']*100:.2f}%)\n"
+    text += f"  Précision  : {metrics['precision']:.4f}\n"
+    text += f"  Rappel     : {metrics['recall']:.4f}\n"
+    text += f"  Score F1   : {metrics['f1']:.4f}\n"
     return text
 
 
@@ -90,8 +90,8 @@ def plot_roc_curve(y_true, y_proba, title="Courbe ROC"):
     ax.plot([0, 1], [0, 1], color='navy', lw=1, linestyle='--')
     ax.set_xlim([0.0, 1.0])
     ax.set_ylim([0.0, 1.05])
-    ax.set_xlabel('Taux de Faux Positifs (FPR)')
-    ax.set_ylabel('Taux de Vrais Positifs (TPR)')
+    ax.set_xlabel('Taux de Faux Positifs (TFP)')
+    ax.set_ylabel('Taux de Vrais Positifs (TVP)')
     ax.set_title(title)
     ax.legend(loc='lower right')
     plt.tight_layout()
@@ -102,7 +102,7 @@ def plot_comparison(metrics_manual, metrics_sklearn):
     """
     Compare visuellement les deux modèles (barres côte à côte).
     """
-    metric_names = ['Accuracy', 'Precision', 'Recall', 'F1-Score']
+    metric_names = ['Exactitude', 'Précision', 'Rappel', 'Score F1']
     keys = ['accuracy', 'precision', 'recall', 'f1']
 
     values_manual = [metrics_manual[k] for k in keys]
@@ -116,7 +116,7 @@ def plot_comparison(metrics_manual, metrics_sklearn):
     bars2 = ax.bar(x + width/2, values_sklearn, width, label='Sklearn', color='#FF9800')
 
     ax.set_ylabel('Score')
-    ax.set_title('Comparaison : Implémentation Manuelle vs Sklearn')
+    ax.set_title('Comparaison : Implémentation manuelle vs Sklearn')
     ax.set_xticks(x)
     ax.set_xticklabels(metric_names)
     ax.set_ylim(0, 1.1)
@@ -142,13 +142,13 @@ def plot_class_distribution(y_train, y_test):
     """
     fig, axes = plt.subplots(1, 2, figsize=(10, 4))
 
-    for ax, data, title in zip(axes, [y_train, y_test], ['Train', 'Test']):
+    for ax, data, title in zip(axes, [y_train, y_test], ['Entraînement', 'Test']):
         unique, counts = np.unique(data, return_counts=True)
         labels = ['Normal' if u == 0 else 'Attaque' for u in unique]
         colors = ['#4CAF50' if u == 0 else '#F44336' for u in unique]
 
         ax.bar(labels, counts, color=colors)
-        ax.set_title(f'Distribution — {title}')
+        ax.set_title(f'Distribution des classes — {title}')
         ax.set_ylabel('Nombre')
 
         for i, (label, count) in enumerate(zip(labels, counts)):
